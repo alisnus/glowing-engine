@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 User = get_user_model()
 
 def check_email(request):
-    email = request.GET.get("email")
+    email = request.GET.get("email", None)
     exists = User.objects.filter(email=email).exists()
     return JsonResponse({"exists": exists})
 
@@ -23,11 +23,19 @@ def register(request):
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
-            return redirect('home')
+            user = authenticate(username=user.username, password=request.POST["password1"])
+            if user:
+                login(request, user)
+                print("✅ Успешная регистрация и редирект на home")
+                return redirect('home')
+        else:
+            print("❌ Ошибки формы:", form.errors)  # Выведем ошибки в консоль
+
     else:
         form = RegisterForm()
+
     return render(request, 'echoserver/register.html', {'form': form})
+
 
 # Вход пользователя
 def user_login(request):

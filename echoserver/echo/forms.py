@@ -4,7 +4,7 @@ from .models import User,Book
 
 class RegisterForm(UserCreationForm):# форму регистрации добавляем
     email = forms.EmailField()
-
+    role = forms.ChoiceField(choices=[("user", "User"), ("admin", "Admin")], required=True)  # Добавляем поле
     class Meta:
         model = User
         fields = ['username', 'email', 'password1', 'password2', 'role']

@@ -3,13 +3,207 @@
 <head>
     <meta charset="UTF-8">
     <title>Регистрация</title>
+    <style>
+        .error {
+            color: red;
+            font-size: 0.9em;
+            margin-top: 4px;
+        }
+        .success {
+            color: green;
+            font-size: 0.9em;
+            margin-top: 4px;
+        }
+        input.error-border {
+            border: 2px solid red;
+            background-color: #ffe6e6;
+        }
+        input.success-border {
+            border: 2px solid green;
+            background-color: #e6ffe6;
+        }
+    </style>
 </head>
 <body>
     <h1>Регистрация</h1>
-    <form method="POST">
+    <form method="POST" id="registrationForm">
         {% csrf_token %}
-        {{ form.as_p }}
+
+        <!-- Поле для логина -->
+        <div>
+            <label for="username">Логин:</label>
+            <input type="text" name="username" id="username" required>
+            <div id="usernameFeedback" class="error"></div>
+        </div>
+
+        <!-- Поле для Email -->
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" name="email" id="email" required>
+            <div id="emailFeedback" class="error"></div>
+        </div>
+
+        <!-- Поле для пароля -->
+        <div>
+            <label for="password1">Пароль:</label>
+            <input type="password" name="password1" id="password1" required>
+            <div id="passwordFeedback" class="error"></div>
+        </div>
+
+        <!-- Поле для подтверждения пароля -->
+        <div>
+            <label for="password2">Подтвердите пароль:</label>
+            <input type="password" name="password2" id="password2" required>
+            <div id="confirmPasswordFeedback" class="error"></div>
+        </div>
+
+        <!-- Выпадает селектом поле для выбора роли -->
+        <div>
+            <label for="role">Роль:</label>
+            <select name="role" id="role" required>
+                <option value="user">Пользователь</option>
+                <option value="admin">Администратор</option>
+            </select>
+        </div>
+
         <button type="submit">Зарегистрироваться</button>
     </form>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() { // событие которое срабатывает когда вся страница загружена и готова к работе
+            const usernameInput = document.getElementById("username"); // получаем ссылки на элементы формы
+            const emailInput = document.getElementById("email");
+            const passwordInput = document.getElementById("password1");
+            const confirmPasswordInput = document.getElementById("password2");
+            const roleInput = document.getElementById("role");
+
+            const usernameFeedback = document.getElementById("usernameFeedback"); //элементы для отображения ошибок под соответствующими полями ввода
+            const emailFeedback = document.getElementById("emailFeedback");
+            const passwordFeedback = document.getElementById("passwordFeedback");
+            const confirmPasswordFeedback = document.getElementById("confirmPasswordFeedback");
+
+            let isEmailUnique = false; // фллаг для уникальности имэила
+
+            // Валидация email
+            function validateEmail() {
+                const email = emailInput.value.trim(); // убираем лишние пробелы и береем введенный имэил
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // регулярное выражение для проверки имэила
+
+                if (!emailRegex.test(email)) { // проверяем насколько имэил соответствует регулярному выражению
+                    emailFeedback.textContent = "Неверный формат email";
+                    emailInput.classList.add("error-border");
+                    emailInput.classList.remove("success-border");
+                    isEmailUnique = false;
+                    return false;
+                } else {
+                    emailFeedback.textContent = "Проверяем email...";
+                    emailInput.classList.remove("error-border");
+                    emailInput.classList.add("success-border");
+
+                    fetch(`/check-email/?email=${encodeURIComponent(email)}`) // отправляем гет-запрос на сервер по адрес чека, и далее ьерём введённый емэил
+                        .then(response => response.json()) //получаем джейсон ответ и преобразовываем в джава скрипт-объект
+                        .then(data => {
+                            if (data.exists) { // если сервер сказал, что емэил занят
+                                emailFeedback.textContent = "Email уже используется";
+                                emailInput.classList.add("error-border");
+                                emailInput.classList.remove("success-border");
+                                isEmailUnique = false;
+                            } else {
+                                emailFeedback.textContent = "Email доступен";
+                                emailInput.classList.add("success-border");
+                                isEmailUnique = true;
+                            }
+                        })
+                        .catch(error => { //отлавливаем ошибки и не ломаем страницу
+                            console.error("Ошибка при проверке email:", error);
+                        });
+
+                    return true;
+                }
+            }
+
+            // Валидация пароля
+            function validatePassword() {
+                const password = passwordInput.value;
+
+                if (password.length < 8) {
+                    passwordFeedback.textContent = "Пароль должен содержать не менее 8 символов";
+                    passwordInput.classList.add("error-border");
+                    return false;
+                }
+
+                if (password.toLowerCase().includes(usernameInput.value.toLowerCase())) {
+                    passwordFeedback.textContent = "Пароль не должен содержать логин";
+                    passwordInput.classList.add("error-border");
+                    return false;
+                }
+
+                if (password.toLowerCase().includes(emailInput.value.toLowerCase())) {
+                    passwordFeedback.textContent = "Пароль слишком похож на email";
+                    passwordInput.classList.add("error-border");
+                    return false;
+                }
+
+                passwordFeedback.textContent = "";
+                passwordInput.classList.remove("error-border");
+                return true;
+            }
+
+            // Валидация подтверждения пароля
+            function validateConfirmPassword() {
+                if (confirmPasswordInput.value !== passwordInput.value) {
+                    confirmPasswordFeedback.textContent = "Пароли не совпадают";
+                    confirmPasswordInput.classList.add("error-border");
+                    return false;
+                } else {
+                    confirmPasswordFeedback.textContent = "";
+                    confirmPasswordInput.classList.remove("error-border");
+                    return true;
+                }
+            }
+
+            // Валидация логина
+            function validateUsername() {
+                if (usernameInput.value.trim() === "") {
+                    usernameFeedback.textContent = "Логин не может быть пустым";
+                    usernameInput.classList.add("error-border");
+                    return false;
+                } else {
+                    usernameFeedback.textContent = "";
+                    usernameInput.classList.remove("error-border");
+                    return true;
+                }
+            }
+
+            // Валидация выбора роли
+            function validateRole() {
+                if (roleInput.value === "") {
+                    return false;
+                }
+                return true;
+            }
+
+            // Проверка на лету при вводе
+            usernameInput.addEventListener("input", validateUsername);
+            emailInput.addEventListener("input", validateEmail);
+            passwordInput.addEventListener("input", validatePassword);
+            confirmPasswordInput.addEventListener("input", validateConfirmPassword);
+
+            // Проверка перед отправкой формы
+            document.getElementById("registrationForm").addEventListener("submit", function(e) {
+                const isUsernameValid = validateUsername();
+                const isEmailValid = validateEmail();
+                const isPasswordValid = validatePassword();
+                const isConfirmPasswordValid = validateConfirmPassword();
+                const isRoleValid = validateRole();
+
+                if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isConfirmPasswordValid || !isRoleValid || !isEmailUnique) {
+                    e.preventDefault();
+                    alert("Исправьте ошибки перед отправкой формы.");
+                }
+            });
+        });
+
+    </script>
 </body>
 </html>
